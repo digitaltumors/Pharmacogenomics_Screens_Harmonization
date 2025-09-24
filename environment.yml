@@ -1,0 +1,15 @@
+name: harmonization
+channels:
+  - defaults
+dependencies:
+  - python=3.11
+  - adjusttext
+  - matplotlib
+  - numpy
+  - pandas
+  - scikit-learn
+  - scipy
+  - seaborn
+  - statsmodels
+  - umap-learn
+prefix: /cellar/users/nmattson/miniconda3/envs/harmonization
