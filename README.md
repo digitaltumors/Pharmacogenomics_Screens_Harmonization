@@ -8,6 +8,10 @@ Use environment.yml provided to install dependencies
 ```
 conda env create python== --name harmonization --file=environment.yml
 ```
+
+## Data Availability 
+Input data are downloadable from: https://doi.org/10.5281/zenodo.17196025
+Recalculated truncated drug response profiles are downladable from: https://doi.org/10.5281/zenodo.17194793
 ## Usage
 1. Calculate drug response profiles for the full and truncated dose response with:
    CODER_drugscoring_submit.sh
