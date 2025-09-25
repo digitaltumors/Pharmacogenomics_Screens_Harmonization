@@ -4,9 +4,9 @@
 This repo provides the code to calculate reproducibility, as measured by Pearson Correlation, between cancer pharmacogenomics databases. Further details of how this code was implemented can be found in "Harmonization and Integration of Pharmacogenomics Screens".
 
 ## Environment Set-Up
-Use `environment.yml` to install needed dependencies.
+Use `environment.yml` to set up a virtual environment with needed dependencies.
 ```
-conda env create python== --name harmonization --file=environment.yml
+conda env create -f environment.yml
 ```
 
 ## Data Availability 
