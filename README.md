@@ -6,7 +6,7 @@ This repo provides the code to calculate reproducibility, as measured by Pearson
 ## Environment Set-Up
 Use `environment.yml` to set up a virtual environment (harmonization) with needed dependencies.
 ```
-conda env create -f environment.yml
+conda env create -f environment.yml -n harmonization
 ```
 
 ## Data Availability 
