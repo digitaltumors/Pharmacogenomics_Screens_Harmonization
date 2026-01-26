@@ -12,4 +12,6 @@ dependencies:
   - seaborn
   - statsmodels
   - umap-learn
+  - joblib
+  - argparse
 prefix: /cellar/users/nmattson/miniconda3/envs/harmonization
