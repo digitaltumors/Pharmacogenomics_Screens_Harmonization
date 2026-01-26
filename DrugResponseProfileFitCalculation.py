@@ -38,16 +38,10 @@ def fit_batch_of_pairs(pair_batch, data, cols):
     results = []
     error_details = []
     
-    # Read data once for this batch
-    # data = pd.read_csv(data_file)
-    
     for drug_id, cell_line in pair_batch:
         try:
             drug_data = data[(data[cols['drug']] == drug_id) & 
                             (data[cols['cell']] == cell_line)]
-            
-            # if len(drug_data) < 4:
-            #     continue
 
             if args.truncate:
                 print("Truncating dose range!", flush=True)
@@ -59,25 +53,10 @@ def fit_batch_of_pairs(pair_batch, data, cols):
             
             x = np.log10(drug_data[cols['dose']].values)
             y = drug_data[cols['viability']].values
-
-            # if args.truncate:
-            #     # Truncate dose range to 0.03 to 10 uM
-            #     x_trunc = x[(x >= 0.03) & (x <= 10)]
-            #     y_trunc = y[(x >= 0.03) & (x <= 10)]
-
-            #     x_final = x_trunc
-            #     y_final = y_trunc
-            # else:
-            #     x_final = x
-            #     y_final = y
             
             # Sort
             sort_idx = np.argsort(x)
             x, y = x[sort_idx], y[sort_idx]
-            
-            # if np.std(y) < 1e-6:
-                # error_details.append('flat_curve')
-                # continue
             
             # Initial guess
             # p0 = [y.min(), np.median(x), 1.0]
@@ -95,20 +74,6 @@ def fit_batch_of_pairs(pair_batch, data, cols):
             y_range = abs(y.max() - y.min())
             y_buffer = max(0.5 * y_range, 0.1)  # At least 0.1 buffer
 
-            # bounds_lower = [
-            #     max(0, y.min() - y_buffer),      # Bottom: can't be < 0 for viability
-            #     y.min(),                          # Top: at least minimum observed
-            #     x.min() * 0.1,                   # EC50: lower bound (was 0.1)
-            #     0.01                                # Hill: minimum slope (was 0.01)
-            # ]
-            # bounds_upper = [
-            #     y.max(),                          # Bottom: at most maximum observed  
-            #     min(1.0, y.max() + y_buffer),    # Top: can't exceed 1 for fraction
-            #     x.max() * 10,                    # EC50: upper bound (was 10)
-            #     100                                 # Hill: maximum slope (was 100)
-            # ]
-            # bounds_lower = [y.max() - 0.5*y_range, max(0, y.min() - 0.5*y_range), x.min() * 0.1, 0.01]
-            # bounds_upper = [y.max() + 0.5*y_range, y.min() + 0.5*y_range, x.max()*10, 100]
             # NOTE: [bottom, log(ec50), nH] bounds taken from PharmacoGx git repo (2022)
             bounds_lower = [0,-6, 0]
             bounds_upper = [1, 6, 4]
@@ -130,10 +95,6 @@ def fit_batch_of_pairs(pair_batch, data, cols):
             bottom, ec50, nH = result.x
             
             # Calculate IC50
-            # numerator = 0.5 - bottom
-            # denominator = top - 0.5
-            # if top - 0.5 > 0 and 0.5 - bottom > 0:
-                # ic50 = ec50 * (((top - 0.5)/(0.5 - bottom))**(1/nH))
             if (0.5 - bottom > 0):
                 ic50 = ec50 + (1/nH) * np.log10(0.5/(0.5 - bottom))
                 if ic50 > x.max() and not args.force_ic50:
@@ -224,19 +185,6 @@ pair_batches = [pairs[i:i+batch_size] for i in range(0, len(pairs), batch_size)]
 print(f"Processing {len(pair_batches)} batches with 64 cores", flush=True)
 print(f"Started fitting at {time.strftime('%H:%M:%S')}", flush=True)
 sys.stdout.flush()
-
-# Process batches in parallel
-# all_results = Parallel(n_jobs=64, verbose=50)(
-#     delayed(fit_batch_of_pairs)(batch, args.data, cols) 
-#     for batch in pair_batches
-# )
-
-# # Flatten results
-# final_results = [item for sublist in all_results for item in sublist]
-# final_df = pd.DataFrame(final_results)
-
-# print(f"\nComplete at {time.strftime('%H:%M:%S')}", flush=True)
-# print(f"Successful fits: {len(final_df)}/{len(pairs)}", flush=True)
 
 all_results = Parallel(n_jobs=64, verbose=50)(
     delayed(fit_batch_of_pairs)(batch, data_df, cols) 
