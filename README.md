@@ -10,8 +10,8 @@ conda env create -f environment.yml -n harmonization
 ```
 
 ## Data Availability 
-Raw input data for calculating drug response profiles are downloadable from: [Raw input data](https://zenodo.org/records/17196024)    
-Recalculated drug response profiles from the truncated dose range are downladable from: [Truncated drug response](https://doi.org/10.5281/zenodo.17194793)
+Raw input data for calculating drug response profiles are downloadable from: [Raw input data](https://zenodo.org/records/17981848)    
+Recalculated drug response profiles from the truncated dose range are downladable from: [Truncated drug response](https://zenodo.org/records/18561741)
 
 ## Drug Response Profile Calculation
 Using replicate-collapsed relative viabilities as input, run the following command to calculate drug response profiles: 
