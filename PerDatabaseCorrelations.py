@@ -14,6 +14,7 @@ parser.add_argument('--ctrp_full', type=str, required=True)
 parser.add_argument('--ctrp_trunc', type=str, required=True)
 parser.add_argument('--compare_ic50', action='store_true', help='Activate if want to focus on comparing correlations for different IC50 ranges')
 parser.add_argument('--compare_all_effective_drugs', action='store_true', help='Activate if want to focus on comparing correlations for all vs. effective drugs')
+parser.add_argument('--corr_coeff', type=str, choices=['spearman', 'pearson'], default='spearman', help='Correlation coefficient to use')
 parser.add_argument('--output_path', type=str, required=True)
 
 args = parser.parse_args()
@@ -26,6 +27,7 @@ gdsc1_full = pd.read_csv(args.gdsc1_full)
 gdsc1_trunc = pd.read_csv(args.gdsc1_trunc)
 ctrpv2_full = pd.read_csv(args.ctrp_full)
 ctrpv2_trunc = pd.read_csv(args.ctrp_trunc)
+corr_coeff = args.corr_coeff
 
 def bootstrap_spearman_pair(df, col1, col2, n_resamples=500):
     """Efficient bootstrap with reduced resamples"""
@@ -40,13 +42,47 @@ def bootstrap_spearman_pair(df, col1, col2, n_resamples=500):
     )
     return corr[0], bs.confidence_interval.low, bs.confidence_interval.high
 
-def process_one_comparison(db_pair, type_val, response, df, col1, col2, n_resamples=500):
-    corr, ci_low, ci_high = bootstrap_spearman_pair(df, col1, col2, n_resamples)
+def bootstrap_pearson_pair(df, col1, col2, n_resamples=500):
+    """Efficient bootstrap with reduced resamples"""
+    corr = sp.stats.pearsonr(df[col1], df[col2], alternative='greater')
+    bs = sp.stats.bootstrap(
+        (df[col1].values, df[col2].values),  # Convert to numpy arrays
+        lambda x, y: sp.stats.pearsonr(x, y)[0], 
+        paired=True, 
+        n_resamples=n_resamples,
+        method='percentile',  # Faster than BCa
+        random_state=42
+    )
+    return corr[0], bs.confidence_interval.low, bs.confidence_interval.high
+
+def process_one_comparison(db_pair, type_dose, response, df, col1, col2, n_resamples=500):
+    if corr_coeff == 'pearson':
+        corr, ci_low, ci_high = bootstrap_pearson_pair(df, col1, col2, n_resamples)
+    else:
+        corr, ci_low, ci_high = bootstrap_spearman_pair(df, col1, col2, n_resamples)
     return {
         'db_pair': db_pair,
-        'type': type_val,
+        'type_dose': type_dose,
         'response': response,
-        'spearman_corr': corr,
+        'corr': corr,
+        '95ci_low': ci_low,
+        '95ci_high': ci_high,
+        'n_unique_drugs': df['Drug ID'].nunique(),
+        'n_unique_cells': df['Cell Line'].nunique(),
+        'pairs': len(df)
+    }
+
+def process_one_comparison_all_effective_drugs(db_pair, type_drug, type_dose, response, df, col1, col2, n_resamples=500):
+    if corr_coeff == 'pearson':
+        corr, ci_low, ci_high = bootstrap_pearson_pair(df, col1, col2, n_resamples)
+    else:
+        corr, ci_low, ci_high = bootstrap_spearman_pair(df, col1, col2, n_resamples)
+    return {
+        'db_pair': db_pair,
+        'type_drug': type_drug,
+        'type_dose': type_dose,
+        'response': response,
+        'corr': corr,
         '95ci_low': ci_low,
         '95ci_high': ci_high,
         'n_unique_drugs': df['Drug ID'].nunique(),
@@ -99,6 +135,12 @@ if args.compare_ic50:
         ('GDSCv1_CTRP', 'Range', 'IC50', gdsc1_ctrpv2_full_range, 'log_IC50_gdsc1', 'log_IC50_ctrpv2'),
         ('PRISM_CTRP', 'Range', 'IC50', prism_ctrpv2_full_range, 'log_IC50_prism', 'log_IC50_ctrpv2'),
     ]
+    # Run in parallel - uses all CPU cores
+    print("Starting bootstrap calculations...")
+    all_corr_ci = Parallel(n_jobs=-1, verbose=10)(
+        delayed(process_one_comparison)(db_pair, type_dose, response, df, col1, col2)
+        for db_pair, type_dose, response, df, col1, col2 in all_comparisons
+    )
 
 elif args.compare_all_effective_drugs:
     # "Effective" by AUC_sig
@@ -364,6 +406,12 @@ elif args.compare_all_effective_drugs:
         ('PRISM_CTRP', 'Effective', 'Truncated', 'AUC_trapz', prism_ctrpv2_trunc_eff_AUCtrapz, 'AUC_trapz_prism', 'AUC_trapz_ctrpv2'),
         ('PRISM_CTRP', 'Effective', 'Truncated', 'AUC_sig_trunc', prism_ctrpv2_trunc_eff_AUCsignorm, 'AUC_sig_norm_prism', 'AUC_sig_norm_ctrpv2')
     ]
+    # Run in parallel - uses all CPU cores
+    print("Starting bootstrap calculations...")
+    all_corr_ci = Parallel(n_jobs=-1, verbose=10)(
+        delayed(process_one_comparison_all_effective_drugs)(db_pair, type_drug, type_dose, response, df, col1, col2)
+        for db_pair, type_drug, type_dose, response, df, col1, col2 in all_comparisons
+    )
 
 
 else:
@@ -443,16 +491,16 @@ else:
         ('PRISM_CTRP', 'Truncated', 'AUC_sig_trunc', prism_ctrpv2_trunc, 'AUC_sig_norm_prism', 'AUC_sig_norm_ctrpv2')
     ]
     
-# Run in parallel - uses all CPU cores
-print("Starting bootstrap calculations...")
-all_spearman_ci = Parallel(n_jobs=-1, verbose=10)(
-    delayed(process_one_comparison)(db_pair, type_val, response, df, col1, col2)
-    for db_pair, type_val, response, df, col1, col2 in all_comparisons
-)
+    # Run in parallel - uses all CPU cores
+    print("Starting bootstrap calculations...")
+    all_corr_ci = Parallel(n_jobs=-1, verbose=10)(
+        delayed(process_one_comparison)(db_pair, type_dose, response, df, col1, col2)
+        for db_pair, type_dose, response, df, col1, col2 in all_comparisons
+    )
 
 # Convert to DataFrame
-spearman_ci_df = pd.DataFrame(all_spearman_ci)
+corr_ci_df = pd.DataFrame(all_corr_ci)
 
 
 # Save to CSV
-spearman_ci_df.to_csv(args.output_path, index=False)
+corr_ci_df.to_csv(args.output_path, index=False)

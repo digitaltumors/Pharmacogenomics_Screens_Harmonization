@@ -18,6 +18,7 @@ parser.add_argument('--mts023_trunc', type=str, required=True)
 parser.add_argument('--mts024_trunc', type=str, required=True)
 parser.add_argument('--mts025_trunc', type=str, required=True)
 parser.add_argument('--mts026_trunc', type=str, required=True)
+parser.add_argument('--corr_coeff', type=str, choices=['spearman', 'pearson'], default='spearman', help='Correlation coefficient to use')
 parser.add_argument('--output_path', type=str, required=True)
 
 args = parser.parse_args()
@@ -36,6 +37,7 @@ mts023_trunc = pd.read_csv(args.mts023_trunc)
 mts024_trunc = pd.read_csv(args.mts024_trunc)
 mts025_trunc = pd.read_csv(args.mts025_trunc)
 mts026_trunc = pd.read_csv(args.mts026_trunc)
+corr_coeff = args.corr_coeff
 
 
 def bootstrap_spearman_pair(df, col1, col2, n_resamples=500):
@@ -51,14 +53,30 @@ def bootstrap_spearman_pair(df, col1, col2, n_resamples=500):
     )
     return corr[0], bs.confidence_interval.low, bs.confidence_interval.high
 
+def bootstrap_pearson_pair(df, col1, col2, n_resamples=500):
+    """Efficient bootstrap with reduced resamples"""
+    corr = sp.stats.pearsonr(df[col1], df[col2], alternative='greater')
+    bs = sp.stats.bootstrap(
+        (df[col1].values, df[col2].values),  # Convert to numpy arrays
+        lambda x, y: sp.stats.pearsonr(x, y)[0], 
+        paired=True, 
+        n_resamples=n_resamples,
+        method='percentile',  # Faster than BCa
+        random_state=42
+    )
+    return corr[0], bs.confidence_interval.low, bs.confidence_interval.high
+
 def process_one_comparison(db_pair, type_drug, type_dose, response, df, col1, col2, n_resamples=500):
-    corr, ci_low, ci_high = bootstrap_spearman_pair(df, col1, col2, n_resamples)
+    if corr_coeff == 'pearson':
+        corr, ci_low, ci_high = bootstrap_pearson_pair(df, col1, col2, n_resamples)
+    else:
+        corr, ci_low, ci_high = bootstrap_spearman_pair(df, col1, col2, n_resamples)
     return {
         'db_pair': db_pair,
         'type_drug': type_drug,
         'type_dose': type_dose,
         'response': response,
-        'spearman_corr': corr,
+        'corr': corr,
         '95ci_low': ci_low,
         '95ci_high': ci_high,
         'n_unique_drugs': df['Drug ID'].nunique(),
@@ -368,13 +386,13 @@ all_comparisons = [
 
 # Run in parallel - uses all CPU cores
 print("Starting bootstrap calculations...")
-all_spearman_ci = Parallel(n_jobs=-1, verbose=10)(
+all_corr_ci = Parallel(n_jobs=-1, verbose=10)(
     delayed(process_one_comparison)(db_pair, type_drug, type_dose, response, df, col1, col2)
     for db_pair, type_drug, type_dose, response, df, col1, col2 in all_comparisons
 )
 
 # Convert to DataFrame
-spearman_ci_df = pd.DataFrame(all_spearman_ci)
+corr_ci_df = pd.DataFrame(all_corr_ci)
 
 # Save to CSV
-spearman_ci_df.to_csv(args.output_path, index=False)
+corr_ci_df.to_csv(args.output_path, index=False)
