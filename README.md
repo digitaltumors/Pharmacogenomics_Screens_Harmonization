@@ -10,8 +10,8 @@ conda env create -f environment.yml -n harmonization
 ```
 
 ## Data Availability 
-Raw input data for calculating drug response profiles are downloadable from: [Raw input data](https://zenodo.org/records/17196024)    
-Recalculated drug response profiles from the truncated dose range are downladable from: [Truncated drug response](https://doi.org/10.5281/zenodo.17194793)
+Raw input data for calculating drug response profiles are downloadable from: [Raw input data](https://zenodo.org/records/17196025)    
+Recalculated drug response profiles from the truncated dose range are downladable from: [Truncated drug response](https://zenodo.org/records/20403271)
 
 ## Drug Response Profile Calculation
 Using replicate-collapsed relative viabilities as input, run the following command to calculate drug response profiles: 
@@ -36,8 +36,8 @@ python DrugResponseProfileFitCalculation.py
 - `--force_ic50`: Include flag to include all IC50 values
 - `--output_path`: Path to store output file 
 
-## Cross-database Spearman Correlation Calculation
-Using full- and truncated-range drug response profiles for each database as input, run the following command to calculate cross-database Spearman correlations:
+## Cross-database Correlation Calculation
+Using full- and truncated-range drug response profiles for each database as input, run the following command to calculate cross-database reproducibility using Spearman or Pearson correlations:
 ```
 python PerDatabaseCorrelations.py
    --gdsc2_full 
@@ -50,6 +50,7 @@ python PerDatabaseCorrelations.py
    --ctrp_trunc
    --compare_ic50
    --compare_all_effective_drugs
+   --corr_coeff
    --output_path
 ```
 **Arguments**
@@ -63,9 +64,10 @@ python PerDatabaseCorrelations.py
 - `--ctrp_trunc`: Path to input file containing CTRP truncated-range drug response profiles
 - `--compare_ic50`: Include flag to calculate correlations for all IC50 vs. 1nM < IC50 < 100 uM (optional)
 - `--compare_all_effective_drugs`: Include flag to calculate correlations for all drugs vs. effective drugs (optional)
+- `--corr_coeff`: Specify correlation coefficient used to measure reproducibility (i.e., `'spearman'` or `'pearson'`)
 - `--output_path`: Path to store output file 
 
-For specifically successive releases of PRISM screens, use full- and truncated-range drug response profiles for each screen as input, and run the following command to calculate cross-dataset Spearman correlations:
+For specifically successive releases of PRISM screens, use full- and truncated-range drug response profiles for each screen as input, and run the following command to calculate cross-dataset correlations:
 ```
 python PerPRISMScreenCorrelations.py
    --prism_public_full
@@ -82,6 +84,7 @@ python PerPRISMScreenCorrelations.py
    --mts025_trunc
    --mts026_full
    --mts026_trunc
+   --corr_coeff
    --output_path
 ```
 **Arguments**
@@ -99,6 +102,7 @@ python PerPRISMScreenCorrelations.py
 - `--mts025_trunc`: Path to input file containing truncated-range drug response profiles from PRISM Run 25
 - `--mts026_full`: Path to input file containing full-range drug response profiles from PRISM Run 26
 - `--mts026_trunc`: Path to input file containing truncated-range drug response profiles from PRISM Run 26
+- `--corr_coeff`: Specify correlation coefficient used to measure reproducibility (i.e., `'spearman'` or `'pearson'`)
 - `--output_path`: Path to store output file 
 
 

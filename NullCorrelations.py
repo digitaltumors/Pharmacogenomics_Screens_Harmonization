@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from scipy.stats import spearmanr, pearsonr, rankdata
+from scipy.stats import spearmanr, rankdata
 from joblib import Parallel, delayed
 
 parser = argparse.ArgumentParser()
@@ -8,12 +8,10 @@ parser.add_argument('--GDSC1_data', type=str, help='Path to GDSC1 response data'
 parser.add_argument('--GDSC2_data', type=str, help='Path to GDSC2 response data')
 parser.add_argument('--PRISM_data', type=str, help='Path to PRISM response data')
 parser.add_argument('--CTRP_data', type=str, help='Path to CTRP response data')
-parser.add_argument('--corr_coeff', type=str, choices=['spearman', 'pearson'], default='spearman', help='Correlation coefficient to use')
 parser.add_argument('--output_path', type=str, required=True)
 
 args = parser.parse_args()
 
-corr_coeff = args.corr_coeff
 def per_drug_permutation_test_vectorized(db1_data, db2_data, metric='log_IC50',
                                          n_permutations=1000, min_cell_lines=3,
                                          seed=42):
@@ -57,11 +55,7 @@ def per_drug_permutation_test_vectorized(db1_data, db2_data, metric='log_IC50',
         if len(drug_data) >= min_cell_lines:
             x = drug_data[f'{metric}_db1'].values
             y = drug_data[f'{metric}_db2'].values
-            
-            if corr_coeff == 'pearson':
-                r, _ = pearsonr(x, y)
-            else:
-                r, _ = spearmanr(x, y)
+            r, _ = spearmanr(x, y)
             observed_correlations.append(r)
             drug_info.append({
                 'drug': drug,
